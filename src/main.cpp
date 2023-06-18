@@ -1,7 +1,13 @@
 #include <M5Unified.h>
 #include <Preferences.h>
 #include <SPIFFS.h>
+#include <WiFi.h>
 #include "utility/M5Timer.h"
+
+#include "OLYCameraShotHelper.h"
+#include "OLYCameraSystem.h"
+
+M5Timer timer;
 
 void M5init()
 {
@@ -38,26 +44,76 @@ void SpiffsInit()
     }
 }
 
+void writeApInfo(String ssid, String password)
+{
+    Preferences preferences;
+    preferences.begin("AP-info", false);
+    preferences.putString("ssid", ssid);
+    preferences.putString("pass", password);
+    preferences.end();
+    Serial.println("AP-info was written.");
+}
+
 void setup()
 {
     M5init();
     M5.Lcd.fillScreen(TFT_WHITE);
 
     // ---- Write wifi settings to preferences ----
-    Preferences preferences;
-    preferences.begin("AP-info", true);
-    preferences.putString("ssid", "M5Stack");
-    preferences.putString("password", "12345678");
-    preferences.end();
-    return;
+    // writeApInfo("M5Stack", "12345678");
+    // return;
     // ---- Write wifi settings to preferences ----
 
     SpiffsInit();
     Serial.println(String("Preferences has ") + (new Preferences)->freeEntries() + " free entries.");
+
+    char ssid[33];
+    char password[65];
+    Preferences preferences;
+    preferences.begin("AP-info", true);
+    if (! preferences.isKey("ssid") || ! preferences.isKey("pass")) {
+        Serial.println("AP-info is not found.");
+        preferences.end();
+        return;
+    }
+    preferences.getString("ssid", ssid, sizeof(ssid));
+    preferences.getString("pass", password, sizeof(password));
+    preferences.end();
+
+    M5.Lcd.println("WiFi.begin()");
+    WiFi.begin();
+    WiFi.mode(WIFI_STA);
+
+    Serial.print("Connecting to ");
+    Serial.println(ssid);
+
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    M5.Lcd.println("WiFi connected.");
+    Serial.println(WiFi.localIP().toString());
+
     M5.Speaker.tone(440, 500);
+
+    OLYCameraSystem system;
+    Serial.println(system.getConnectMode());
+
+    Serial.println(system.switchCameramode("rec"));
+
+    OLYCameraShotHelper shotHelper;
+    shotHelper.startLiveview();
+
+    // timer.setTimeout(5000, []() {
+    //     OLYCameraSystem system;
+    //     system.powerOff();
+    //     M5.Lcd.println("poweroff.");
+    // });
 }
 
 void loop()
 {
     M5.update();
+    timer.run();
 }
