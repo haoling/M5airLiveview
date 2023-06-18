@@ -7,6 +7,8 @@
 #include "OLYCameraShotHelper.h"
 #include "OLYCameraSystem.h"
 
+OLYCameraSystem olySystem;
+OLYCameraShotHelper olyShotHelper;
 M5Timer timer;
 
 void M5init()
@@ -64,6 +66,8 @@ void setup()
     // return;
     // ---- Write wifi settings to preferences ----
 
+    Serial.println(String("PSRAM: ") + ESP.getPsramSize());
+
     SpiffsInit();
     Serial.println(String("Preferences has ") + (new Preferences)->freeEntries() + " free entries.");
 
@@ -97,13 +101,11 @@ void setup()
 
     M5.Speaker.tone(440, 500);
 
-    OLYCameraSystem system;
-    Serial.println(system.getConnectMode());
+    Serial.println(olySystem.getConnectMode());
 
-    Serial.println(system.switchCameramode("rec"));
+    Serial.println(olySystem.switchCameramode("rec"));
 
-    OLYCameraShotHelper shotHelper;
-    shotHelper.startLiveview();
+    olyShotHelper.startLiveview();
 
     // timer.setTimeout(5000, []() {
     //     OLYCameraSystem system;
@@ -116,4 +118,5 @@ void loop()
 {
     M5.update();
     timer.run();
+    olyShotHelper.loop();
 }

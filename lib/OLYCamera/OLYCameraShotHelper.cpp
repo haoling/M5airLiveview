@@ -1,7 +1,8 @@
 #include "OLYCameraShotHelper.h"
 #include "AsyncUDP.h"
 #include <M5Unified.h>
-AsyncUDP udp;
+
+static AsyncUDP udp;
 
 typedef struct {
     uint8_t cc:4;
@@ -15,6 +16,7 @@ typedef struct {
     uint32_t ssrc;
 } RTPHeader;
 
+static int8_t readyBuffer = -1;
 static uint8_t useBuffer = 0;
 static uint16_t bufferLength = 0;
 static uint16_t bufferPos = 0;
@@ -65,13 +67,14 @@ void OLYCameraShotHelper::startLiveview()
             if (bufferLength == 0) {
                 bufferLength = packet.length() - pos;
                 for (int i = 0; i < bufferCount; i++) {
-                    buffer[i] = (uint8_t *)malloc(bufferLength);
+                    // malloc from psram
+                    buffer[i] = (uint8_t *)ps_malloc(bufferLength);
                 }
             }
             else if (bufferLength < (packet.length() - pos) + bufferPos) {
                 bufferLength = (packet.length() - pos) + bufferPos;
                 for (int i = 0; i < bufferCount; i++) {
-                    buffer[i] = (uint8_t *)realloc(buffer[i], bufferLength);
+                    buffer[i] = (uint8_t *)ps_realloc(buffer[i], bufferLength);
                 }
             }
 
@@ -83,16 +86,34 @@ void OLYCameraShotHelper::startLiveview()
                     Serial.printf("invalid jpeg data -- bufferPos: %d, jpeg_size: %d\n", bufferPos, jpeg_size);
                 } else {
                     // 画像を表示する
-                    M5.Lcd.drawJpg(buffer[useBuffer], jpeg_size, 0, 0, 320, 240);
+                    //M5.Lcd.drawJpg(buffer[useBuffer], jpeg_size, 0, 0, 320, 240);
+                    if (readyBuffer == -1) {
+                        readyBuffer = useBuffer;
+                    }
                     bufferPos = 0;
                     useBuffer++;
                     if (useBuffer >= bufferCount) {
                         useBuffer = 0;
+                    }
+                    if (useBuffer == readyBuffer) {
+                        Serial.println("buffer overflow");
+                        useBuffer++;
+                        if (useBuffer >= bufferCount) {
+                            useBuffer = 0;
+                        }
                     }
                 }
             }
         });
 
         httpGet("exec_takemisc.cgi?com=startliveview&port=01234&lvqty=0320x0240", 200);
+    }
+}
+
+void OLYCameraShotHelper::loop()
+{
+    if (readyBuffer >= 0) {
+        M5.Lcd.drawJpg(buffer[readyBuffer], bufferLength, 0, 0, 320, 240);
+        readyBuffer = -1;
     }
 }

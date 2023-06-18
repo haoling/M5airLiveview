@@ -15,6 +15,7 @@ class OLYCameraBase
     const String baseUrl = "http://192.168.0.10/";
     const unsigned int getLastError() { return lastError; }
     const String getLastErrorMessage() { return lastErrorMessage; }
+    virtual void loop() {}
 
   protected:
     unsigned int lastError = OLYCAMERAERROR_SUCCESS;
