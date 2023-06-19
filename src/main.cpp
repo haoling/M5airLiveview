@@ -114,6 +114,11 @@ void setup()
     //     system.powerOff();
     //     M5.Lcd.println("poweroff.");
     // });
+
+    timer.setInterval(1000, []() {
+        // シリアルに消費電力を書く
+        Serial.println(String("getACINCurrent: ") + M5.Power.Axp192.getACINCurrent());
+    });
 }
 
 void loop()
