@@ -119,4 +119,11 @@ void loop()
     M5.update();
     timer.run();
     olyShotHelper.loop();
+    if (M5.BtnPWR.wasClicked()) {
+        olySystem.powerOff();
+        M5.Lcd.println("poweroff.");
+        timer.setTimeout(500, []() {
+            M5.Power.powerOff();
+        });
+    }
 }
