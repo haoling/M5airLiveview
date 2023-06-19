@@ -25,6 +25,8 @@ void M5init()
 
     M5.Speaker.begin();
     M5.Speaker.setVolume(128);
+
+    M5.Display.setColorDepth(16);
 }
 
 void SpiffsInit()
