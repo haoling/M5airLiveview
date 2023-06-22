@@ -289,10 +289,16 @@ void OLYCameraShotHelper::startLiveview()
 void OLYCameraShotHelper::loop()
 {
     timer.run();
+}
+
+bool OLYCameraShotHelper::render()
+{
     if (readyBuffer >= 0) {
         //M5.Lcd.drawJpg(buffer[readyBuffer], bufferLength, 0, 0, 320, 240);
         drawJpg();
         drawCounts[0]++;
         readyBuffer = -1;
+        return true;
     }
+    return false;
 }

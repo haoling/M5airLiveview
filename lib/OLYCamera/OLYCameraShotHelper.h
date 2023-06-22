@@ -8,6 +8,7 @@ class OLYCameraShotHelper : public OLYCameraBase
   public:
     void startLiveview();
     void loop() override;
+    bool render() override;
 };
 
 #endif // _OLYCAMERASHOTHELPER_H_

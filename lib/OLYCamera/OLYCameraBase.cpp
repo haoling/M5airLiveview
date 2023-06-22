@@ -1,9 +1,11 @@
 #include "OLYCameraBase.h"
+#include <M5Unified.h>
 
 using namespace tinyxml2;
 
 String OLYCameraBase::httpGet(String api, const int normalResponseCode)
 {
+    M5_LOGI("httpGet: %s", api.c_str());
     httpClient.begin(baseUrl + api);
     httpClient.addHeader("X-Protocol", "OlympusCameraKit");
 

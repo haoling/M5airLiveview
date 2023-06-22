@@ -16,6 +16,7 @@ class OLYCameraBase
     const unsigned int getLastError() { return lastError; }
     const String getLastErrorMessage() { return lastErrorMessage; }
     virtual void loop() {}
+    virtual bool render() { return false; }
 
   protected:
     unsigned int lastError = OLYCAMERAERROR_SUCCESS;

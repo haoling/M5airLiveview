@@ -108,6 +108,7 @@ void setup()
     Serial.println(olySystem.switchCameramode("rec"));
 
     olyShotHelper.startLiveview();
+    olySystem.startPushEvent();
 
     // timer.setTimeout(5000, []() {
     //     OLYCameraSystem system;
@@ -126,6 +127,8 @@ void loop()
     M5.update();
     timer.run();
     olyShotHelper.loop();
+    olySystem.loop();
+
     if (M5.BtnPWR.wasClicked()) {
         olySystem.powerOff();
         M5.Lcd.println("poweroff.");
@@ -133,4 +136,6 @@ void loop()
             M5.Power.powerOff();
         });
     }
+
+    olyShotHelper.render();
 }
