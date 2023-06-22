@@ -62,23 +62,24 @@ void setup()
 {
     M5init();
     M5.Lcd.fillScreen(TFT_WHITE);
+    M5.setLogDisplayIndex(0);
 
     // ---- Write wifi settings to preferences ----
     // writeApInfo("M5Stack", "12345678");
     // return;
     // ---- Write wifi settings to preferences ----
 
-    Serial.println(String("PSRAM: ") + ESP.getPsramSize());
+    M5_LOGI("PSRAM: %d", ESP.getPsramSize());
 
     SpiffsInit();
-    Serial.println(String("Preferences has ") + (new Preferences)->freeEntries() + " free entries.");
+    M5_LOGI("Preferences has %d free entries.", (new Preferences)->freeEntries());
 
     char ssid[33];
     char password[65];
     Preferences preferences;
     preferences.begin("AP-info", true);
     if (! preferences.isKey("ssid") || ! preferences.isKey("pass")) {
-        Serial.println("AP-info is not found.");
+        M5_LOGW("AP-info is not found.");
         preferences.end();
         return;
     }
@@ -86,22 +87,21 @@ void setup()
     preferences.getString("pass", password, sizeof(password));
     preferences.end();
 
-    M5.Lcd.println("WiFi.begin()");
+    M5_LOGI("WiFi.begin()");
     WiFi.begin();
     WiFi.mode(WIFI_STA);
 
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
-
+    M5_LOGI("Connecting to %s", ssid);
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");
     }
-    M5.Lcd.println("WiFi connected.");
-    Serial.println(WiFi.localIP().toString());
+    M5_LOGI("WiFi connected");
+    M5_LOGI("%s", WiFi.localIP().toString());
 
-    M5.Speaker.tone(440, 500);
+    M5.Log.setDisplay(nullptr);
+    M5.Speaker.tone(440, 200);
 
     Serial.println(olySystem.getConnectMode());
 
@@ -117,7 +117,7 @@ void setup()
 
     timer.setInterval(1000, []() {
         // シリアルに消費電力を書く
-        Serial.println(String("getACINCurrent: ") + M5.Power.Axp192.getACINCurrent());
+        M5_LOGI("getACINCurrent: %f", M5.Power.Axp192.getACINCurrent());
     });
 }
 
