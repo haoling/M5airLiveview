@@ -30,8 +30,7 @@ void OLYCameraShotHelper::startLiveview()
         udp.onPacket([](AsyncUDPPacket packet) {
             uint16_t pos = 0;
             RTPHeader *h = (RTPHeader *)packet.data();
-            // Serial.printf("v: %d, p: %d, x: %d, cc: %d, m: %d, pt: %d, sn: %d", h->version, h->padding, h->extension, h->cc, h->marker, h->payload_type, h->sequence_number);
-            // Serial.println();
+            // M5_LOGI("v: %d, p: %d, x: %d, cc: %d, m: %d, pt: %d, sn: %d", h->version, h->padding, h->extension, h->cc, h->marker, h->payload_type, h->sequence_number);
             pos += sizeof(RTPHeader);
 
             // RTP Header Extension
@@ -40,8 +39,7 @@ void OLYCameraShotHelper::startLiveview()
                 pos += 2;
                 uint16_t length = packet.data()[pos] << 8 | packet.data()[pos + 1];
                 pos += 2;
-                // Serial.printf("profile: %d, length: %d", profile, length);
-                // Serial.println();
+                // M5_LOGI("profile: %d, length: %d", profile, length);
 
                 while (length > 0) {
                     uint16_t id = packet.data()[pos] << 8 | packet.data()[pos + 1];
@@ -49,14 +47,12 @@ void OLYCameraShotHelper::startLiveview()
                     uint16_t size = packet.data()[pos] << 8 | packet.data()[pos + 1];
                     pos += 2;
                     length -= size + 1;
-                    // Serial.printf("id: %d, size: %d", id, size);
-                    // Serial.println();
+                    // M5_LOGI("id: %d, size: %d", id, size);
 
                     if (id == 0x0001) {
                         // get jpeg_size with network byte order
                         jpeg_size = packet.data()[pos] << 24 | packet.data()[pos + 1] << 16 | packet.data()[pos + 2] << 8 | packet.data()[pos + 3];
-                        // Serial.printf("function_id: %d, length: %d, jpeg_size: %d", fs->function_id, fs->length, fs->jpeg_size);
-                        // Serial.println();
+                        // M5_LOGI("function_id: %d, length: %d, jpeg_size: %d", id, length, jpeg_size);
                     }
                     pos += size * 4;
                 }
@@ -82,8 +78,8 @@ void OLYCameraShotHelper::startLiveview()
             bufferPos += packet.length() - pos;
 
             if (h->marker && M5.Lcd.getStartCount() == 0) {
-                if (bufferPos < jpeg_size) {
-                    Serial.printf("invalid jpeg data -- bufferPos: %d, jpeg_size: %d\n", bufferPos, jpeg_size);
+                if (jpeg_size == 0 || bufferPos < jpeg_size) {
+                    M5_LOGE("invalid jpeg data -- bufferPos: %d, jpeg_size: %d", bufferPos, jpeg_size);
                 } else {
                     // 画像を表示する
                     //M5.Lcd.drawJpg(buffer[useBuffer], jpeg_size, 0, 0, 320, 240);
@@ -96,7 +92,7 @@ void OLYCameraShotHelper::startLiveview()
                         useBuffer = 0;
                     }
                     if (useBuffer == readyBuffer) {
-                        Serial.println("buffer overflow");
+                        M5_LOGW("buffer overflow");
                         useBuffer++;
                         if (useBuffer >= bufferCount) {
                             useBuffer = 0;
