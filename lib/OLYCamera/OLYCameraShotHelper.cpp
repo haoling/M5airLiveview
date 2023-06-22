@@ -211,12 +211,14 @@ void udpPacket(AsyncUDPPacket packet)
         for (int i = 0; i < bufferCount; i++) {
             // malloc from psram
             buffer[i] = (uint8_t *)ps_malloc(bufferLength);
+            //buffer[i] = (uint8_t *)heap_caps_malloc(bufferLength, MALLOC_CAP_8BIT);
         }
     }
     else if (bufferLength < (packet.length() - pos) + bufferPos) {
         bufferLength = (packet.length() - pos) + bufferPos;
         for (int i = 0; i < bufferCount; i++) {
             buffer[i] = (uint8_t *)ps_realloc(buffer[i], bufferLength);
+            //buffer[i] = (uint8_t *)heap_caps_realloc(buffer[i], bufferLength, MALLOC_CAP_8BIT);
         }
     }
 
