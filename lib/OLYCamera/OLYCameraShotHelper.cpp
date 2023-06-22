@@ -2,8 +2,10 @@
 #include "AsyncUDP.h"
 #include <M5Unified.h>
 #include "tjpgdClass.h"
+#include "utility/M5Timer.h"
 
 static AsyncUDP udp;
+static M5Timer timer;
 
 typedef struct {
     uint8_t cc:4;
@@ -17,11 +19,14 @@ typedef struct {
     uint32_t ssrc;
 } RTPHeader;
 
+static uint8_t recvCounts[5] = {0, 0, 0, 0, 0};
+static uint8_t drawCounts[5] = {0, 0, 0, 0, 0};
+
 static int8_t readyBuffer = -1;
 static uint8_t useBuffer = 0;
 static uint16_t bufferLength = 0;
 static uint16_t bufferPos = 0;
-const uint8_t bufferCount = 2;
+const uint8_t bufferCount = 3;
 static uint8_t *buffer[bufferCount];
 static uint32_t jpeg_size;
 static uint32_t jpeg_pos;
@@ -34,8 +39,8 @@ static uint8_t* _dmabufs[buf_count];
 static uint8_t* _dmabuf{};
 
 uint32_t jpgRead(TJpgD *jdec, uint8_t *buf, uint32_t len) {
-    M5_LOGI("jpgRead:%d, jpeg_size:%d, jpeg_pos:%d", len, jpeg_size, jpeg_pos);
-    if (len > jpeg_size - jpeg_pos)  len = jpeg_size - jpeg_pos;
+    //M5_LOGI("jpgRead:%d, jpeg_size:%d, jpeg_pos:%d", len, jpeg_size, jpeg_pos);
+    if (len > bufferLength - jpeg_pos)  len = bufferLength - jpeg_pos;
     if (buf) {
         memcpy(buf, buffer[readyBuffer] + jpeg_pos, len);
     }
@@ -151,9 +156,20 @@ bool drawJpg()
     } else {
         off_y = 0;
     }
-    M5_LOGI("j(%d,%d) o(%d,%d) j:[%d,%d] out[%d,%d]", jpg_x, jpg_y, off_x, off_y, _jdec.width, _jdec.height, out_width, out_height);
+    //M5_LOGI("j(%d,%d) o(%d,%d) j:[%d,%d] out[%d,%d]", jpg_x, jpg_y, off_x, off_y, _jdec.width, _jdec.height, out_width, out_height);
 
     jres = _jdec.decomp_multitask(jpgWrite16, jpgWriteRow);
+
+    if (jres > TJpgD::JDR_INTR)
+    {
+        // If the value is 1 (JDR_INTR),
+        // No problem because the process is stopped by myself.
+        // See also [*1]
+        M5_LOGE("decomp failed! %d", jres);
+        return false;
+    }
+
+    return true;
 }
 
 void udpPacket(AsyncUDPPacket packet)
@@ -182,7 +198,7 @@ void udpPacket(AsyncUDPPacket packet)
             if (id == 0x0001) {
                 // get jpeg_size with network byte order
                 jpeg_size = packet.data()[pos] << 24 | packet.data()[pos + 1] << 16 | packet.data()[pos + 2] << 8 | packet.data()[pos + 3];
-                M5_LOGI("function_id: %d, length: %d, jpeg_size: %d", id, length, jpeg_size);
+                //M5_LOGI("function_id: %d, length: %d, jpeg_size: %d", id, length, jpeg_size);
             }
             pos += size * 4;
         }
@@ -213,6 +229,7 @@ void udpPacket(AsyncUDPPacket packet)
         } else {
             // 画像を表示する
             //M5.Lcd.drawJpg(buffer[useBuffer], jpeg_size, 0, 0, 320, 240);
+            recvCounts[0]++;
             if (readyBuffer == -1) {
                 readyBuffer = useBuffer;
             }
@@ -221,6 +238,7 @@ void udpPacket(AsyncUDPPacket packet)
             if (useBuffer >= bufferCount) {
                 useBuffer = 0;
             }
+            //M5_LOGI("useBuffer: %d, readyBuffer: %d", useBuffer, readyBuffer);
             if (useBuffer == readyBuffer) {
                 M5_LOGW("buffer overflow");
                 useBuffer++;
@@ -230,6 +248,21 @@ void udpPacket(AsyncUDPPacket packet)
             }
         }
     }
+}
+
+void logFps()
+{
+    M5_LOGI(
+        "recv: %d, draw: %d",
+        (recvCounts[0] + recvCounts[1] + recvCounts[2] + recvCounts[3] + recvCounts[4]) / 5,
+        (drawCounts[0] + drawCounts[1] + drawCounts[2] + drawCounts[3] + drawCounts[4]) / 5
+    );
+
+    memcpy(recvCounts + 1, recvCounts, 4);
+    recvCounts[0] = 0;
+
+    memcpy(drawCounts + 1, drawCounts, 4);
+    drawCounts[0] = 0;
 }
 
 void OLYCameraShotHelper::startLiveview()
@@ -245,15 +278,19 @@ void OLYCameraShotHelper::startLiveview()
 
         udp.onPacket(udpPacket);
 
+        timer.setInterval(1000, logFps);
+
         httpGet("exec_takemisc.cgi?com=startliveview&port=01234&lvqty=0320x0240", 200);
     }
 }
 
 void OLYCameraShotHelper::loop()
 {
+    timer.run();
     if (readyBuffer >= 0) {
         //M5.Lcd.drawJpg(buffer[readyBuffer], bufferLength, 0, 0, 320, 240);
         drawJpg();
+        drawCounts[0]++;
         readyBuffer = -1;
     }
 }
