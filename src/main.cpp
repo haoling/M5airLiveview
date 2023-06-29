@@ -4,11 +4,13 @@
 #include <WiFi.h>
 #include "utility/M5Timer.h"
 
+#include "OLYCameraShot.h"
 #include "OLYCameraShotHelper.h"
 #include "OLYCameraSystem.h"
 
-OLYCameraSystem olySystem;
+OLYCameraShot olyShot;
 OLYCameraShotHelper olyShotHelper;
+OLYCameraSystem olySystem;
 M5Timer timer;
 
 void M5init()
@@ -128,6 +130,14 @@ void loop()
     timer.run();
     olyShotHelper.loop();
     olySystem.loop();
+
+    if (M5.Touch.isEnabled()) {
+        auto t = M5.Touch.getDetail();
+        if (t.isPressed()) {
+            M5_LOGI("x = %4d, y = %4d", t.x, t.y);
+            olyShot.newAssignAfFrame(t.x, t.y);
+        }
+    }
 
     if (M5.BtnPWR.wasClicked()) {
         olySystem.powerOff();
