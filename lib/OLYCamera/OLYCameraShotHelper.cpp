@@ -22,6 +22,14 @@ typedef struct {
 static uint8_t recvCounts[5] = {0, 0, 0, 0, 0};
 static uint8_t drawCounts[5] = {0, 0, 0, 0, 0};
 
+// Focus peaking
+static bool focusPeakingEnabled = false;
+static uint16_t *frameBuf = nullptr;
+static uint8_t *grayBuf = nullptr;
+static const int FOCUS_PEAK_THRESHOLD = 80;
+// Red in swap565_t format (R=255, G=0, B=0)
+static const uint16_t PEAK_COLOR = 0x00F8;
+
 static int8_t readyBuffer = -1;
 static uint8_t useBuffer = 0;
 static uint16_t bufferLength = 0;
@@ -49,8 +57,6 @@ uint32_t jpgRead(TJpgD *jdec, uint8_t *buf, uint32_t len) {
 }
 
 uint32_t jpgWrite16(TJpgD *jdec, void *bitmap, TJpgD::JRECT *rect) {
-    uint16_t *dst = (uint16_t *)_dmabuf;
-
     uint_fast16_t x = rect->left;
     uint_fast16_t y = rect->top;
     uint_fast16_t w = rect->right + 1 - x;
@@ -64,11 +70,13 @@ uint32_t jpgWrite16(TJpgD *jdec, void *bitmap, TJpgD::JRECT *rect) {
     if (x >= (off_x + outWidth))  return 1;
     if (rect->bottom < off_y)     return 1;
     if (y >= (off_y + outHeight)) return 0; // No more rendering. [*1] => decomp failed 1 (Interrupted by output function.
-        
+
+    uint_fast16_t y_start = y;
     if (off_y > y) {
         uint_fast16_t linesToSkip = off_y - y;
         src += linesToSkip * w * 3;
         h -= linesToSkip;
+        y_start = off_y;
     }
 
     if (off_x > x) {
@@ -78,32 +86,71 @@ uint32_t jpgWrite16(TJpgD *jdec, void *bitmap, TJpgD::JRECT *rect) {
         oR = (rect->right + 1) - (off_x + outWidth);
     }
     int_fast16_t line = (w - ( oL + oR ));
-    dst += oL + x - off_x;
     src += oL * 3;
 
-    do {
-        int i = 0;
+    if (focusPeakingEnabled && frameBuf && grayBuf) {
+        // Focus peaking mode: write to PSRAM frame buffer + grayscale buffer
+        int fb_x = oL + x - off_x;
+        int fb_y = y_start - off_y;
+        uint16_t *fb_dst = frameBuf + fb_y * outWidth + fb_x;
+        uint8_t *gb_dst = grayBuf + fb_y * outWidth + fb_x;
+
         do {
-            // In order of speed, ALGO2, ALGO1, ALGO0(Original)
-            uint32_t r = src[i*3+0] & 0xF8;
-            uint32_t g = src[i*3+1] >> 2;
-            uint32_t b = src[i*3+2] >> 3;
-            r +=  (g >> 3);
-            b +=  (g << 5);
-            dst[i] = r | b << 8;
-        } while (++i != line);
-        dst += outWidth;
-        src += w * 3;
-    } while (--h);
+            int i = 0;
+            do {
+                uint8_t r8 = src[i*3+0];
+                uint8_t g8 = src[i*3+1];
+                uint8_t b8 = src[i*3+2];
+
+                // RGB565 (swap565_t)
+                uint32_t r = r8 & 0xF8;
+                uint32_t g = g8 >> 2;
+                uint32_t b = b8 >> 3;
+                r += (g >> 3);
+                b += (g << 5);
+                fb_dst[i] = r | b << 8;
+
+                // Grayscale for edge detection (BT.601 luminance)
+                gb_dst[i] = (uint8_t)((r8 * 77 + g8 * 150 + b8 * 29) >> 8);
+            } while (++i != line);
+            fb_dst += outWidth;
+            gb_dst += outWidth;
+            src += w * 3;
+        } while (--h);
+    } else {
+        // Normal mode: write to DMA buffer
+        uint16_t *dst = (uint16_t *)_dmabuf;
+        dst += oL + x - off_x;
+
+        do {
+            int i = 0;
+            do {
+                // In order of speed, ALGO2, ALGO1, ALGO0(Original)
+                uint32_t r = src[i*3+0] & 0xF8;
+                uint32_t g = src[i*3+1] >> 2;
+                uint32_t b = src[i*3+2] >> 3;
+                r +=  (g >> 3);
+                b +=  (g << 5);
+                dst[i] = r | b << 8;
+            } while (++i != line);
+            dst += outWidth;
+            src += w * 3;
+        } while (--h);
+    }
     return 1;
 }
 
 uint32_t jpgWriteRow(TJpgD *jdec, uint32_t y, uint32_t h) {
+    // Focus peaking mode: skip DMA push, frame will be pushed after edge detection
+    if (focusPeakingEnabled) {
+        return 1;
+    }
+
     static int flip = 0;
     int_fast16_t oy = off_y;
     int_fast16_t bottom = y + h;
     int_fast16_t yy = y;
-    
+
     if(bottom < oy) { return 1; /* continue */ }
     if(y >= oy + M5.Lcd.height()) { return 0; /* cutoff */}
 
@@ -117,7 +164,7 @@ uint32_t jpgWriteRow(TJpgD *jdec, uint32_t y, uint32_t h) {
         if(oy + M5.Lcd.height() > y && oy + M5.Lcd.height() < y + h) // Last block
         {
             h -= (y + h) - (M5.Lcd.height() + oy);
-        } 
+        }
     }
     //M5_LOGI("oy:%d y:%d h:%d yy:%d", oy, y, h, yy);
 
@@ -128,6 +175,41 @@ uint32_t jpgWriteRow(TJpgD *jdec, uint32_t y, uint32_t h) {
     flip = !flip;
     _dmabuf = _dmabufs[flip];
     return 1;
+}
+
+// Apply Laplacian edge detection on grayscale buffer and overlay highlights on frame buffer
+void applyFocusPeaking(int width, int height)
+{
+    for (int y = 1; y < height - 1; y++) {
+        int idx = y * width + 1;
+        for (int x = 1; x < width - 1; x++, idx++) {
+            // 3x3 Laplacian kernel: [0 -1 0; -1 4 -1; 0 -1 0]
+            int laplacian = 4 * (int)grayBuf[idx]
+                          - (int)grayBuf[idx - 1]
+                          - (int)grayBuf[idx + 1]
+                          - (int)grayBuf[idx - width]
+                          - (int)grayBuf[idx + width];
+            if (laplacian < 0) laplacian = -laplacian;
+            if (laplacian > FOCUS_PEAK_THRESHOLD) {
+                frameBuf[idx] = PEAK_COLOR;
+            }
+        }
+    }
+}
+
+// Push the PSRAM frame buffer to LCD in strips using DMA double-buffering
+void pushFrameToLcd(int width, int height)
+{
+    const int stripHeight = 48;
+    int flip = 0;
+    for (int y = 0; y < height; y += stripHeight) {
+        int h = std::min(stripHeight, height - y);
+        uint8_t *dma = _dmabufs[flip];
+        memcpy(dma, (uint8_t*)(frameBuf + y * width), width * h * 2);
+        M5.Lcd.pushImageDMA(jpg_x, jpg_y + y, width, h,
+                             reinterpret_cast<::lgfx::swap565_t*>(dma));
+        flip = !flip;
+    }
 }
 
 bool drawJpg()
@@ -167,6 +249,12 @@ bool drawJpg()
         // See also [*1]
         M5_LOGE("decomp failed! %d", jres);
         return false;
+    }
+
+    // Focus peaking: apply edge detection overlay and push to LCD
+    if (focusPeakingEnabled && frameBuf && grayBuf) {
+        applyFocusPeaking(out_width, out_height);
+        pushFrameToLcd(out_width, out_height);
     }
 
     return true;
@@ -276,6 +364,17 @@ void OLYCameraShotHelper::startLiveview()
         }
         _dmabuf = _dmabufs[0];
 
+        // Allocate focus peaking buffers in PSRAM (320x240)
+        const int maxPixels = 320 * 240;
+        frameBuf = (uint16_t *)ps_malloc(maxPixels * sizeof(uint16_t));
+        grayBuf = (uint8_t *)ps_malloc(maxPixels * sizeof(uint8_t));
+        if (frameBuf && grayBuf) {
+            M5_LOGI("Focus peaking buffers allocated: frame=%dB, gray=%dB",
+                     maxPixels * 2, maxPixels);
+        } else {
+            M5_LOGE("Failed to allocate focus peaking buffers");
+        }
+
         _jdec.multitask_begin();
 
         udp.onPacket(udpPacket);
@@ -295,4 +394,20 @@ void OLYCameraShotHelper::loop()
         drawCounts[0]++;
         readyBuffer = -1;
     }
+}
+
+void OLYCameraShotHelper::toggleFocusPeaking()
+{
+    if (!frameBuf || !grayBuf) {
+        M5_LOGE("Focus peaking buffers not available");
+        return;
+    }
+    focusPeakingEnabled = !focusPeakingEnabled;
+    M5_LOGI("Focus peaking: %s", focusPeakingEnabled ? "ON" : "OFF");
+}
+
+bool OLYCameraShotHelper::isFocusPeakingEnabled() const
+{
+    return focusPeakingEnabled;
+
 }

@@ -126,6 +126,9 @@ void loop()
     M5.update();
     timer.run();
     olyShotHelper.loop();
+    if (M5.BtnA.wasClicked()) {
+        olyShotHelper.toggleFocusPeaking();
+    }
     if (M5.BtnPWR.wasClicked()) {
         olySystem.powerOff();
         M5.Lcd.println("poweroff.");
