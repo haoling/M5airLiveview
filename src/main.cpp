@@ -11,6 +11,13 @@ OLYCameraSystem olySystem;
 OLYCameraShotHelper olyShotHelper;
 M5Timer timer;
 
+// デジタルズーム制御
+// 利用可能な値の確認: http://192.168.0.10/get_camprop.cgi?com=desc&propname=digitaltelecon
+static const int NUM_ZOOM_LEVELS = 3;
+static const char* ZOOM_LABELS[NUM_ZOOM_LEVELS] = {"x1", "x2", "x4"};
+static const char* ZOOM_API_VALUES[NUM_ZOOM_LEVELS] = {"OFF", "x2", "x4"};
+static int currentZoomLevel = 0;
+
 void M5init()
 {
     auto cfg = M5.config();
@@ -128,6 +135,18 @@ void loop()
     olyShotHelper.loop();
     if (M5.BtnA.wasClicked()) {
         olyShotHelper.toggleFocusPeaking();
+    }
+    if (M5.BtnC.wasClicked()) {
+        currentZoomLevel = (currentZoomLevel + 1) % NUM_ZOOM_LEVELS;
+        olySystem.setCamProp("digitaltelecon", ZOOM_API_VALUES[currentZoomLevel]);
+        M5_LOGI("Digital zoom: %s (%s)", ZOOM_LABELS[currentZoomLevel], ZOOM_API_VALUES[currentZoomLevel]);
+        M5.Speaker.tone(880, 50);
+    }
+    if (currentZoomLevel > 0) {
+        M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+        M5.Lcd.setTextSize(2);
+        M5.Lcd.setTextDatum(textdatum_t::top_right);
+        M5.Lcd.drawString(ZOOM_LABELS[currentZoomLevel], M5.Lcd.width() - 5, 5);
     }
     if (M5.BtnPWR.wasClicked()) {
         olySystem.powerOff();
