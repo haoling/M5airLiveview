@@ -21,7 +21,8 @@ bool OLYCameraSystem::powerOff()
 
 bool OLYCameraSystem::setCamProp(const char *propname, const char *value)
 {
-    String url = "set_camprop.cgi?com=set&propname=" + String(propname) + "&value=" + String(value);
-    String response = httpGet(url);
+    String url = "set_camprop.cgi?com=set&propname=" + String(propname);
+    String body = "<?xml version=\"1.0\"?><set><value>" + String(value) + "</value></set>";
+    String response = httpPost(url, body);
     return response.length() > 0;
 }

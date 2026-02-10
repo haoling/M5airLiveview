@@ -23,6 +23,28 @@ String OLYCameraBase::httpGet(String api, const int normalResponseCode)
     return response;
 }
 
+String OLYCameraBase::httpPost(String api, String body, const int normalResponseCode)
+{
+    httpClient.begin(baseUrl + api);
+    httpClient.addHeader("X-Protocol", "OlympusCameraKit");
+    httpClient.addHeader("Content-Type", "text/xml");
+
+    int status_code = httpClient.POST(body);
+    if(status_code != normalResponseCode) {
+        Serial.println("HTTP POST failed");
+        Serial.println(status_code);
+        Serial.println(httpClient.getString());
+        lastError = OLYCAMERAERROR_HTTP;
+        lastErrorMessage = String("HTTP POST failed: status_code=" + status_code);
+        httpClient.end();
+        return "";
+    }
+
+    String response = httpClient.getString();
+    httpClient.end();
+    return response;
+}
+
 String OLYCameraBase::getRootXmlText(String xml)
 {
     XMLDocument xmlDocument;
