@@ -14,7 +14,7 @@ M5Timer timer;
 // デジタルズーム制御 (exec_takemisc.cgi?com=newctrldigizoom)
 // 範囲: 1.0～3.0
 static const int NUM_ZOOM_LEVELS = 3;
-static const float ZOOM_VALUES[NUM_ZOOM_LEVELS] = {1.0f, 2.0f, 3.0f};
+static const float ZOOM_VALUES[NUM_ZOOM_LEVELS] = {100, 200, 300};
 static const char* ZOOM_LABELS[NUM_ZOOM_LEVELS] = {"x1", "x2", "x3"};
 static int currentZoomLevel = 0;
 
@@ -156,4 +156,5 @@ void loop()
             M5.Power.powerOff();
         });
     }
+
 }
