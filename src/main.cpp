@@ -135,19 +135,13 @@ void loop()
     olyShotHelper.loop();
     if (M5.BtnA.wasClicked()) {
         olyShotHelper.toggleFocusPeaking();
+        M5.Speaker.tone(880, 50);
     }
     if (M5.BtnC.wasClicked()) {
         currentZoomLevel = (currentZoomLevel + 1) % NUM_ZOOM_LEVELS;
         olySystem.setDigitalZoom(ZOOM_VALUES[currentZoomLevel]);
         M5_LOGI("Digital zoom: %s (%.1f)", ZOOM_LABELS[currentZoomLevel], ZOOM_VALUES[currentZoomLevel]);
         M5.Speaker.tone(880, 50);
-    }
-    if (currentZoomLevel > 0) {
-        M5.Lcd.waitDMA();
-        M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-        M5.Lcd.setTextSize(2);
-        M5.Lcd.setTextDatum(textdatum_t::top_right);
-        M5.Lcd.drawString(ZOOM_LABELS[currentZoomLevel], M5.Lcd.width() - 5, 5);
     }
     if (M5.BtnPWR.wasClicked()) {
         olySystem.powerOff();
@@ -158,3 +152,4 @@ void loop()
     }
 
 }
+
