@@ -11,11 +11,11 @@ OLYCameraSystem olySystem;
 OLYCameraShotHelper olyShotHelper;
 M5Timer timer;
 
-// デジタルズーム制御
-// 利用可能な値の確認: http://192.168.0.10/get_camprop.cgi?com=desc&propname=digitaltelecon
+// デジタルズーム制御 (exec_takemisc.cgi?com=newctrldigizoom)
+// 範囲: 1.0～3.0
 static const int NUM_ZOOM_LEVELS = 3;
-static const char* ZOOM_LABELS[NUM_ZOOM_LEVELS] = {"x1", "x2", "x4"};
-static const char* ZOOM_API_VALUES[NUM_ZOOM_LEVELS] = {"OFF", "x2", "x4"};
+static const float ZOOM_VALUES[NUM_ZOOM_LEVELS] = {1.0f, 2.0f, 3.0f};
+static const char* ZOOM_LABELS[NUM_ZOOM_LEVELS] = {"x1", "x2", "x3"};
 static int currentZoomLevel = 0;
 
 void M5init()
@@ -138,8 +138,8 @@ void loop()
     }
     if (M5.BtnC.wasClicked()) {
         currentZoomLevel = (currentZoomLevel + 1) % NUM_ZOOM_LEVELS;
-        olySystem.setCamProp("digitaltelecon", ZOOM_API_VALUES[currentZoomLevel]);
-        M5_LOGI("Digital zoom: %s (%s)", ZOOM_LABELS[currentZoomLevel], ZOOM_API_VALUES[currentZoomLevel]);
+        olySystem.setDigitalZoom(ZOOM_VALUES[currentZoomLevel]);
+        M5_LOGI("Digital zoom: %s (%.1f)", ZOOM_LABELS[currentZoomLevel], ZOOM_VALUES[currentZoomLevel]);
         M5.Speaker.tone(880, 50);
     }
     if (currentZoomLevel > 0) {

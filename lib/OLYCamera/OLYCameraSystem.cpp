@@ -26,3 +26,10 @@ bool OLYCameraSystem::setCamProp(const char *propname, const char *value)
     String response = httpPost(url, body);
     return response.length() > 0;
 }
+
+bool OLYCameraSystem::setDigitalZoom(float zoom)
+{
+    String url = "exec_takemisc.cgi?com=newctrldigizoom&value=" + String(zoom, 1);
+    String response = httpGet(url);
+    return response.length() > 0;
+}
