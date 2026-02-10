@@ -143,6 +143,7 @@ void loop()
         M5.Speaker.tone(880, 50);
     }
     if (currentZoomLevel > 0) {
+        M5.Lcd.waitDMA();
         M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
         M5.Lcd.setTextSize(2);
         M5.Lcd.setTextDatum(textdatum_t::top_right);
