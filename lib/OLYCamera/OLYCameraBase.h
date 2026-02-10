@@ -21,6 +21,7 @@ class OLYCameraBase
     unsigned int lastError = OLYCAMERAERROR_SUCCESS;
     String lastErrorMessage = "";
     String httpGet(String url, const int normalResponseCode = 200);
+    String httpPost(String url, String body, const int normalResponseCode = 200);
     String getRootXmlText(String xml);
     HTTPClient httpClient;
 };

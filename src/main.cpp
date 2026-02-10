@@ -11,6 +11,13 @@ OLYCameraSystem olySystem;
 OLYCameraShotHelper olyShotHelper;
 M5Timer timer;
 
+// デジタルズーム制御 (exec_takemisc.cgi?com=newctrldigizoom)
+// 範囲: 1.0～3.0
+static const int NUM_ZOOM_LEVELS = 3;
+static const float ZOOM_VALUES[NUM_ZOOM_LEVELS] = {100, 200, 300};
+static const char* ZOOM_LABELS[NUM_ZOOM_LEVELS] = {"x1", "x2", "x3"};
+static int currentZoomLevel = 0;
+
 void M5init()
 {
     auto cfg = M5.config();
@@ -128,6 +135,13 @@ void loop()
     olyShotHelper.loop();
     if (M5.BtnA.wasClicked()) {
         olyShotHelper.toggleFocusPeaking();
+        M5.Speaker.tone(880, 50);
+    }
+    if (M5.BtnC.wasClicked()) {
+        currentZoomLevel = (currentZoomLevel + 1) % NUM_ZOOM_LEVELS;
+        olySystem.setDigitalZoom(ZOOM_VALUES[currentZoomLevel]);
+        M5_LOGI("Digital zoom: %s (%.1f)", ZOOM_LABELS[currentZoomLevel], ZOOM_VALUES[currentZoomLevel]);
+        M5.Speaker.tone(880, 50);
     }
     if (M5.BtnPWR.wasClicked()) {
         olySystem.powerOff();
@@ -136,4 +150,6 @@ void loop()
             M5.Power.powerOff();
         });
     }
+
 }
+

@@ -9,6 +9,8 @@ class OLYCameraSystem : public OLYCameraBase
     const char *getConnectMode();
     const char *switchCameramode(const char *mode);
     bool powerOff();
+    bool setCamProp(const char *propname, const char *value);
+    bool setDigitalZoom(float zoom);
 };
 
 #endif // __OLYCAMERASYSTEM_H__
