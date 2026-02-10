@@ -26,7 +26,7 @@ static uint8_t drawCounts[5] = {0, 0, 0, 0, 0};
 static bool focusPeakingEnabled = false;
 static uint16_t *frameBuf = nullptr;
 static uint8_t *grayBuf = nullptr;
-static const int FOCUS_PEAK_THRESHOLD = 30;
+static const int FOCUS_PEAK_THRESHOLD = 80;
 // Red in swap565_t format (R=255, G=0, B=0)
 static const uint16_t PEAK_COLOR = 0x00F8;
 
@@ -409,4 +409,5 @@ void OLYCameraShotHelper::toggleFocusPeaking()
 bool OLYCameraShotHelper::isFocusPeakingEnabled() const
 {
     return focusPeakingEnabled;
+
 }
